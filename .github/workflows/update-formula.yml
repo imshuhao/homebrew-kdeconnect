@@ -1,0 +1,53 @@
+name: Update KDE Connect Formula
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Run daily at midnight UTC
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  update-formula:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Get current date
+        id: date
+        run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: sudo apt-get install -y curl jq
+
+      - name: Update formula
+        run: |
+          # Get latest ARM64 build URL
+          ARM64_URL=$(curl -s https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/ | grep -o 'href="[^"]*\.dmg"' | grep -o '"[^"]*"' | tr -d '"' | sort -r | head -1)
+          ARM64_FULL_URL="https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/$ARM64_URL"
+          
+          # Get latest x86_64 build URL
+          X86_URL=$(curl -s https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/ | grep -o 'href="[^"]*\.dmg"' | grep -o '"[^"]*"' | tr -d '"' | sort -r | head -1)
+          X86_FULL_URL="https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/$X86_URL"
+          
+          # Update URLs in formula
+          sed -i "s|url \"https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/.*\"|url \"$ARM64_FULL_URL\"|" Formula/kdeconnect.rb
+          sed -i "s|url \"https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/.*\"|url \"$X86_FULL_URL\"|" Formula/kdeconnect.rb
+          
+          # Update revision
+          sed -i "s/revision [0-9]*/revision $(date +%s)/" Formula/kdeconnect.rb
+          
+          echo "ARM64 URL: $ARM64_FULL_URL"
+          echo "X86_64 URL: $X86_FULL_URL"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: "Update KDE Connect formula to latest nightly build (${{ env.DATE }})"
+          title: "Update KDE Connect formula to latest nightly build (${{ env.DATE }})"
+          body: |
+            This automated PR updates the KDE Connect formula to use the latest nightly build.
+            
+            - Updated revision to force brew to fetch the latest DMG files
+            - Date: ${{ env.DATE }}
+          branch: update-kdeconnect-${{ env.DATE }}
+          delete-branch: true
