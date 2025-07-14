@@ -1,0 +1,27 @@
+name: Test Formula
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Homebrew
+        run: |
+          brew update
+
+      - name: Test formula installation (syntax check)
+        run: |
+          mkdir -p "$(brew --repo)/Library/Taps/testuser"
+          cp -r . "$(brew --repo)/Library/Taps/testuser/homebrew-kdeconnect"
+          brew audit --new-formula testuser/kdeconnect/kdeconnect || true
+          # Just test syntax, don't actually install since CI has limited time
+          brew install --dry-run testuser/kdeconnect/kdeconnect
