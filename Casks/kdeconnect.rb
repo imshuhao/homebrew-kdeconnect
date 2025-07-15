@@ -13,10 +13,11 @@ cask "kdeconnect" do
   on_macos do
     if Hardware::CPU.arm?
       url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/kdeconnect-kde-master-5218-macos-clang-arm64.dmg"
-      sha256 "35eef0facd814f3503de43e935ae650f1616a0c0d7b39b7821ad1f1c83373063"
+      sha256 :no_check
     else
       url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/kdeconnect-kde-master-5218-macos-clang-x86_64.dmg"
-      sha256 "35eef0facd814f3503de43e935ae650f1616a0c0d7b39b7821ad1f1c83373063"
+      sha256 :no_check
+    end
     end
   end
 

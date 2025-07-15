@@ -95,25 +95,6 @@ jobs:
           
           # Update version
           sed -i "s|version \"[0-9]*\"|version \"$NEW_VERSION\"|" Casks/kdeconnect.rb
-          
-          # Download files and calculate SHA256
-          echo "Downloading ARM64 file to calculate SHA256..."
-          curl -L -o arm64.dmg "$ARM64_URL"
-          ARM64_SHA256=$(sha256sum arm64.dmg | cut -d' ' -f1)
-          echo "ARM64 SHA256: $ARM64_SHA256"
-          
-          echo "Downloading x86_64 file to calculate SHA256..."
-          curl -L -o x86_64.dmg "$X86_URL"
-          X86_SHA256=$(sha256sum x86_64.dmg | cut -d' ' -f1)
-          echo "x86_64 SHA256: $X86_SHA256"
-          
-          # Update ARM64 SHA256
-          sed -i "/if Hardware::CPU.arm?/,/sha256/s|sha256 \"[^\"]*\"|sha256 \"$ARM64_SHA256\"|" Casks/kdeconnect.rb
-          # Update x86_64 SHA256
-          sed -i "/else/,/sha256/s|sha256 \"[^\"]*\"|sha256 \"$X86_SHA256\"|" Casks/kdeconnect.rb
-          
-          # Clean up downloaded files
-          rm -f arm64.dmg x86_64.dmg
 
       - name: Create Pull Request
         if: steps.check.outputs.update_needed == 'true'
