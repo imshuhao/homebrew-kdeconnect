@@ -57,6 +57,11 @@ class Kdeconnect < Formula
     end
   end
 
+  def uninstall
+    # Remove the symlink from Applications
+    system "rm", "-f", "/Applications/KDE Connect.app" if File.exist?("/Applications/KDE Connect.app")
+  end
+
   zap trash: [
     "~/Library/Application Support/kdeconnect.app",
     "~/Library/Application Support/kpeoplevcard/kdeconnect-*",
