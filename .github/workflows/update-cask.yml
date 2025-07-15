@@ -1,4 +1,4 @@
-name: Update KDE Connect Formula
+name: Update KDE Connect Cask
 
 on:
   schedule:
