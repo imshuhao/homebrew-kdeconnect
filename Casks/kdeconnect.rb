@@ -2,7 +2,7 @@ cask "kdeconnect" do
   name "KDE Connect"
   desc "Connect your phone to your computer"
   homepage "https://kdeconnect.kde.org/"
-  version "0"
+  version "5218"
 
   livecheck do
     url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/"
