@@ -1,7 +1,7 @@
 class Kdeconnect < Formula
   desc "Connect your phone to your computer"
   homepage "https://kdeconnect.kde.org/"
-  version "0.0.0"
+  version "0.20250715"
   license "GPL-2.0-or-later"
 
   livecheck do
@@ -10,9 +10,9 @@ class Kdeconnect < Formula
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/kdeconnect-kde-master-latest-macos-clang-arm64.dmg"
+      url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/kdeconnect-kde-master-5218-macos-clang-arm64.dmg"
     else
-      url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/kdeconnect-kde-master-latest-macos-clang-x86_64.dmg"
+      url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/kdeconnect-kde-master-5218-macos-clang-x86_64.dmg"
     end
   end
 
