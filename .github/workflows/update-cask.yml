@@ -118,12 +118,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          # Install GitHub CLI
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y gh
+          # Install GitHub CLI only if not already present
+          if ! command -v gh &> /dev/null; then
+            echo "Installing GitHub CLI..."
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+            sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+            sudo apt-get update
+            sudo apt-get install -y gh
+          else
+            echo "GitHub CLI already installed"
+          fi
           
           # Configure git
           git config --global user.name "GitHub Action"
@@ -152,8 +157,8 @@ jobs:
             PR_NUMBER=$(echo $PR_URL | grep -o '[0-9]*$')
             
             if [ -n "$PR_NUMBER" ]; then
-              # Enable automerge (without forcing immediate merge)
-              gh pr merge $PR_NUMBER --auto || echo "Auto-merge not enabled. You may need to configure branch protection rules."
+              # Enable automerge
+              gh pr merge $PR_NUMBER --auto --merge || echo "Auto-merge not enabled. You may need to configure branch protection rules."
               echo "PR #$PR_NUMBER is ready for auto-merge (will merge when tests pass)"
             else
               echo "Could not extract PR number from URL: $PR_URL"
