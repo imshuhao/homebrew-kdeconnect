@@ -46,8 +46,9 @@ jobs:
           sed -i "s|url \"https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/.*\"|url \"$ARM64_FULL_URL\"|" Formula/kdeconnect.rb
           sed -i "s|url \"https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/.*\"|url \"$X86_FULL_URL\"|" Formula/kdeconnect.rb
           
-          # Update revision
-          sed -i "s/revision [0-9]*/revision $(date +%s)/" Formula/kdeconnect.rb
+          # Update version instead of revision to force Homebrew to recognize it as a new version
+          NEW_VERSION="0.$(date +%Y%m%d)"
+          sed -i "s|version \"[^\"]*\"|version \"$NEW_VERSION\"|" Formula/kdeconnect.rb
           
           echo "ARM64 URL: $ARM64_FULL_URL"
           echo "X86_64 URL: $X86_FULL_URL"
@@ -70,7 +71,7 @@ jobs:
       # Create the PR using the GitHub CLI
       - name: Create Pull Request
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           gh pr create \
             --title "Update KDE Connect formula to latest nightly build (${{ env.DATE }})" \
