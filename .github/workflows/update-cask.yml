@@ -85,12 +85,12 @@ jobs:
           # Update ARM64 URL - escape the URL for sed
           ARM64_URL_ESCAPED=$(echo "$ARM64_URL" | sed 's/[[\.*^$()+?{|]/\\&/g')
           # Replace the entire ARM64 URL line with the new URL
-          sed -i "/url \".*arm64.*dmg\"/c\    url \"$ARM64_URL_ESCAPED\"" Casks/kdeconnect.rb
+          sed -i "/url \".*arm64.*dmg\"/c\      url \"$ARM64_URL_ESCAPED\"" Casks/kdeconnect.rb
           
           # Update x86_64 URL - escape the URL for sed
           X86_URL_ESCAPED=$(echo "$X86_URL" | sed 's/[[\.*^$()+?{|]/\\&/g')
           # Replace the entire x86_64 URL line with the new URL
-          sed -i "/url \".*x86_64.*dmg\"/c\    url \"$X86_URL_ESCAPED\"" Casks/kdeconnect.rb
+          sed -i "/url \".*x86_64.*dmg\"/c\      url \"$X86_URL_ESCAPED\"" Casks/kdeconnect.rb
           
           # Update version
           sed -i "s|version \"[0-9]*\"|version \"$NEW_VERSION\"|" Casks/kdeconnect.rb
@@ -146,4 +146,4 @@ jobs:
 
       - name: Skip if no update
         if: steps.check.outputs.update_needed == 'false'
-        run: echo "No update needed, skipping PR creation"
+        run: echo "No update needed, skipping PR creation" 
