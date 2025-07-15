@@ -18,7 +18,6 @@ cask "kdeconnect" do
       url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/kdeconnect-kde-master-5218-macos-clang-x86_64.dmg"
       sha256 :no_check
     end
-    end
   end
 
   app "KDE Connect.app"
