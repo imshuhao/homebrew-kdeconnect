@@ -12,16 +12,44 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Homebrew
         run: |
           brew update
 
-      - name: Test formula installation (syntax check)
+      - name: Set up tap
         run: |
           mkdir -p "$(brew --repo)/Library/Taps/testuser"
           cp -r . "$(brew --repo)/Library/Taps/testuser/homebrew-kdeconnect"
+
+      - name: Test formula syntax
+        run: |
           brew audit --quiet --online testuser/kdeconnect/kdeconnect || true
-          # Just test syntax, don't actually install since CI has limited time
           brew install --dry-run testuser/kdeconnect/kdeconnect
+
+      - name: Test livecheck
+        run: |
+          # Test that livecheck can find versions
+          LIVECHECK_OUTPUT=$(brew livecheck testuser/kdeconnect/kdeconnect --json 2>/dev/null || echo "{}")
+          echo "Livecheck output: $LIVECHECK_OUTPUT"
+          
+          # Check if livecheck found a version
+          VERSION=$(echo "$LIVECHECK_OUTPUT" | jq -r '.version // empty')
+          if [ -n "$VERSION" ]; then
+            echo "✅ Livecheck found version: $VERSION"
+          else
+            echo "❌ Livecheck failed to find version"
+            exit 1
+          fi
+
+      - name: Test formula validation
+        run: |
+          # Test that the formula can be loaded without errors
+          brew ruby -e "
+            require 'formula'
+            formula = Formula.factory('$(brew --repo)/Library/Taps/testuser/homebrew-kdeconnect/Formula/kdeconnect.rb')
+            puts '✅ Formula loaded successfully'
+            puts \"Version: #{formula.version}\"
+            puts \"URL: #{formula.url}\"
+          "

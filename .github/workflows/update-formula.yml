@@ -5,7 +5,6 @@ on:
     - cron: '0 0 * * *'  # Run daily at midnight UTC
   workflow_dispatch:  # Allow manual triggering
 
-# These permissions are needed for the GitHub token
 permissions:
   contents: write
   pull-requests: write
@@ -15,91 +14,122 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Get current date
-        id: date
-        run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-
-      - name: Install dependencies
+      - name: Check for updates
+        id: check
         run: |
-          sudo apt-get install -y curl jq
+          # Get latest ARM64 build URL
+          ARM64_FILENAME=$(curl -s https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/ | grep -o 'href="[^"]*\.dmg"' | grep -o '"[^"]*"' | tr -d '"' | sort -r | head -1)
+          ARM64_URL="https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/$ARM64_FILENAME"
+          ARM64_BUILD=$(echo "$ARM64_FILENAME" | grep -o '[0-9]*')
           
+          # Get latest x86_64 build URL
+          X86_FILENAME=$(curl -s https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/ | grep -o 'href="[^"]*\.dmg"' | grep -o '"[^"]*"' | tr -d '"' | sort -r | head -1)
+          X86_URL="https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/$X86_FILENAME"
+          X86_BUILD=$(echo "$X86_FILENAME" | grep -o '[0-9]*')
+          
+          echo "Latest ARM64 build: $ARM64_BUILD"
+          echo "Latest x86_64 build: $X86_BUILD"
+          echo "ARM64 URL: $ARM64_URL"
+          echo "x86_64 URL: $X86_URL"
+          
+          # Use the higher build number as the version
+          if [ "$ARM64_BUILD" -gt "$X86_BUILD" ]; then
+            NEW_VERSION="$ARM64_BUILD"
+          else
+            NEW_VERSION="$X86_BUILD"
+          fi
+          
+          # Get current version from formula
+          CURRENT_VERSION=$(grep -o 'version "[0-9]*"' Formula/kdeconnect.rb | grep -o '[0-9]*')
+          echo "Current version in formula: $CURRENT_VERSION"
+          echo "New version found: $NEW_VERSION"
+          
+          if [ "$NEW_VERSION" != "" ] && [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+            echo "New version available: $NEW_VERSION"
+            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "arm64_url=$ARM64_URL" >> $GITHUB_OUTPUT
+            echo "x86_url=$X86_URL" >> $GITHUB_OUTPUT
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No update needed"
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update formula
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          # Get the actual URLs from the check step
+          ARM64_URL="${{ steps.check.outputs.arm64_url }}"
+          X86_URL="${{ steps.check.outputs.x86_url }}"
+          NEW_VERSION="${{ steps.check.outputs.new_version }}"
+          
+          echo "Updating formula with:"
+          echo "  ARM64 URL: $ARM64_URL"
+          echo "  x86_64 URL: $X86_URL"
+          echo "  Version: $NEW_VERSION"
+          
+          # Update ARM64 URL - escape the URL for sed
+          ARM64_URL_ESCAPED=$(echo "$ARM64_URL" | sed 's/[[\.*^$()+?{|]/\\&/g')
+          sed -i "s|url \".*kdeconnect-kde-master-.*-macos-clang-arm64\.dmg\"|url \"$ARM64_URL_ESCAPED\"|" Formula/kdeconnect.rb
+          
+          # Update x86_64 URL - escape the URL for sed
+          X86_URL_ESCAPED=$(echo "$X86_URL" | sed 's/[[\.*^$()+?{|]/\\&/g')
+          sed -i "s|url \".*kdeconnect-kde-master-.*-macos-clang-x86_64\.dmg\"|url \"$X86_URL_ESCAPED\"|" Formula/kdeconnect.rb
+          
+          # Update version
+          sed -i "s|version \"[0-9]*\"|version \"$NEW_VERSION\"|" Formula/kdeconnect.rb
+          
+          # Download files and calculate SHA256
+          echo "Downloading ARM64 file to calculate SHA256..."
+          curl -L -o arm64.dmg "$ARM64_URL"
+          ARM64_SHA256=$(sha256sum arm64.dmg | cut -d' ' -f1)
+          echo "ARM64 SHA256: $ARM64_SHA256"
+          
+          echo "Downloading x86_64 file to calculate SHA256..."
+          curl -L -o x86_64.dmg "$X86_URL"
+          X86_SHA256=$(sha256sum x86_64.dmg | cut -d' ' -f1)
+          echo "x86_64 SHA256: $X86_SHA256"
+          
+          # Update SHA256 in formula (use ARM64 SHA256 as they should be the same build)
+          sed -i "s|sha256 \"[a-f0-9]*\"|sha256 \"$ARM64_SHA256\"|" Formula/kdeconnect.rb
+          
+          # Clean up downloaded files
+          rm -f arm64.dmg x86_64.dmg
+
+      - name: Create Pull Request
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
           # Install GitHub CLI
           curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
           sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
           sudo apt-get update
           sudo apt-get install -y gh
-
-      - name: Update formula
-        run: |
-          # Get latest ARM64 build URL
-          ARM64_URL=$(curl -s https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/ | grep -o 'href="[^"]*\.dmg"' | grep -o '"[^"]*"' | tr -d '"' | sort -r | head -1)
-          ARM64_FULL_URL="https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/$ARM64_URL"
           
-          # Get latest x86_64 build URL
-          X86_URL=$(curl -s https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/ | grep -o 'href="[^"]*\.dmg"' | grep -o '"[^"]*"' | tr -d '"' | sort -r | head -1)
-          X86_FULL_URL="https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/$X86_URL"
-          
-          # Update URLs in formula
-          sed -i "s|url \"https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/.*\"|url \"$ARM64_FULL_URL\"|" Formula/kdeconnect.rb
-          sed -i "s|url \"https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/.*\"|url \"$X86_FULL_URL\"|" Formula/kdeconnect.rb
-          
-          # Update version instead of revision to force Homebrew to recognize it as a new version
-          NEW_VERSION="0.$(date +%Y%m%d)"
-          sed -i "s|version \"[^\"]*\"|version \"$NEW_VERSION\"|" Formula/kdeconnect.rb
-          
-          # Use empty SHA256 for nightlies since they change frequently
-          # Homebrew will complain but still install, and this is acceptable for nightly builds
-          # sed -i "s|sha256 \"[^\"]*\"|sha256 \"\"|" Formula/kdeconnect.rb
-          
-          echo "ARM64 URL: $ARM64_FULL_URL"
-          echo "X86_64 URL: $X86_FULL_URL"
-          
-          # Verify that the formula is valid
-          mkdir -p /tmp/homebrew-test/Library/Taps/testuser
-          cp -r . /tmp/homebrew-test/Library/Taps/testuser/homebrew-kdeconnect
-          HOMEBREW_LIBRARY_PATH=/usr/local/Homebrew/Library brew ruby -e "require 'formula'; Formula.factory('/tmp/homebrew-test/Library/Taps/testuser/homebrew-kdeconnect/Formula/kdeconnect.rb')" || echo "Formula check failed but continuing anyway"
-
-      # Push changes to a new branch
-      - name: Push changes
-        run: |
+          # Configure git
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          git checkout -b update-kdeconnect-${{ env.DATE }}
+          
+          # Create branch and commit
+          git checkout -b update-kdeconnect-${{ steps.check.outputs.new_version }}
           git add Formula/kdeconnect.rb
-          git commit -m "Update KDE Connect formula to latest nightly build (${{ env.DATE }})"
-          git push -f origin update-kdeconnect-${{ env.DATE }}
+          git commit -m "Update KDE Connect to version ${{ steps.check.outputs.new_version }}"
+          git push -f origin update-kdeconnect-${{ steps.check.outputs.new_version }}
           
-      # Create the PR using the GitHub CLI and enable auto-merge
-      - name: Create Pull Request and Auto-merge
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
-        run: |
-          # Create the PR
-          PR_URL=$(gh pr create \
-            --title "Update KDE Connect formula to latest nightly build (${{ env.DATE }})" \
-            --body "This automated PR updates the KDE Connect formula to use the latest nightly build.
+          # Create PR
+          gh pr create \
+            --title "Update KDE Connect to version ${{ steps.check.outputs.new_version }}" \
+            --body "This automated PR updates the KDE Connect formula to version ${{ steps.check.outputs.new_version }}.
 
-            - Updated to version 0.$(date +%Y%m%d) to force brew to fetch the latest DMG files
-            - Date: ${{ env.DATE }}" \
-            --head update-kdeconnect-${{ env.DATE }} \
-            --base main)
-          
-          if [ $? -eq 0 ] && [ -n "$PR_URL" ]; then
-            echo "Created PR: $PR_URL"
-            
-            # Extract PR number from URL
-            PR_NUMBER=$(echo $PR_URL | grep -o '[0-9]*$')
-            
-            if [ -n "$PR_NUMBER" ]; then
-              # Try to enable auto-merge, but don't fail if it's not supported
-              gh pr merge $PR_NUMBER --auto --merge || echo "Auto-merge not enabled. You may need to manually merge the PR or configure additional permissions."
-              echo "PR #$PR_NUMBER is ready for review/merge"
-            else
-              echo "Could not extract PR number from URL: $PR_URL"
-            fi
-          else
-            echo "PR creation failed or PR already exists"
-          fi
+            - Updated via Homebrew livecheck
+            - Version: ${{ steps.check.outputs.new_version }}" \
+            --head update-kdeconnect-${{ steps.check.outputs.new_version }} \
+            --base main || echo "PR creation failed (may already exist)"
+
+      - name: Skip if no update
+        if: steps.check.outputs.update_needed == 'false'
+        run: echo "No update needed, skipping PR creation"
