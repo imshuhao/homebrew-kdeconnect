@@ -1,8 +1,8 @@
 cask "kdeconnect" do
+  name "KDE Connect"
   desc "Connect your phone to your computer"
   homepage "https://kdeconnect.kde.org/"
   version "0"
-  license "GPL-2.0-or-later"
 
   livecheck do
     url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/"
@@ -13,8 +13,10 @@ cask "kdeconnect" do
   on_macos do
     if Hardware::CPU.arm?
       url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/kdeconnect-kde-master-#{version}-macos-clang-arm64.dmg"
+      sha256 "placeholder"
     else
       url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/kdeconnect-kde-master-#{version}-macos-clang-x86_64.dmg"
+      sha256 "placeholder"
     end
   end
 
