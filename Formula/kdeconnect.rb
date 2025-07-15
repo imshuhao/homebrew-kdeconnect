@@ -3,14 +3,14 @@ class Kdeconnect < Formula
   homepage "https://kdeconnect.kde.org/"
   version "0.0.0"  # Version is meaningless for nightlies
   license "GPL-2.0-or-later"
-  revision 1
+  revision 1752537953
   
   on_macos do
     if Hardware::CPU.arm?
-      url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/kdeconnect-kde-master-latest-macos-clang-arm64.dmg"
+      url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/kdeconnect-kde-master-5215-macos-clang-arm64.dmg"
       sha256 ""
     else
-      url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/kdeconnect-kde-master-latest-macos-clang-x86_64.dmg"
+      url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/kdeconnect-kde-master-5215-macos-clang-x86_64.dmg"
       sha256 ""
     end
   end
