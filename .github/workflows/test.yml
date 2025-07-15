@@ -22,6 +22,6 @@ jobs:
         run: |
           mkdir -p "$(brew --repo)/Library/Taps/testuser"
           cp -r . "$(brew --repo)/Library/Taps/testuser/homebrew-kdeconnect"
-          brew audit --new-formula testuser/kdeconnect/kdeconnect || true
+          brew audit --new testuser/kdeconnect/kdeconnect || true
           # Just test syntax, don't actually install since CI has limited time
           brew install --dry-run testuser/kdeconnect/kdeconnect

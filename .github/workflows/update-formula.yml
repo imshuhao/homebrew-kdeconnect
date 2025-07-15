@@ -42,6 +42,11 @@ jobs:
           
           echo "ARM64 URL: $ARM64_FULL_URL"
           echo "X86_64 URL: $X86_FULL_URL"
+          
+          # Verify that the formula is valid
+          mkdir -p /tmp/homebrew-test/Library/Taps/testuser
+          cp -r . /tmp/homebrew-test/Library/Taps/testuser/homebrew-kdeconnect
+          HOMEBREW_LIBRARY_PATH=/usr/local/Homebrew/Library brew ruby -e "require 'formula'; Formula.factory('/tmp/homebrew-test/Library/Taps/testuser/homebrew-kdeconnect/Formula/kdeconnect.rb')" || echo "Formula check failed but continuing anyway"
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
