@@ -1,6 +1,6 @@
 cask "kdeconnect" do
   name "KDE Connect"
-  desc "Connect your phone to your computer"
+  desc "Enabling communication between all your devices"
   homepage "https://kdeconnect.kde.org/"
   version "5218"
 
