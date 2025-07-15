@@ -23,10 +23,10 @@ jobs:
           mkdir -p "$(brew --repo)/Library/Taps/testuser"
           cp -r . "$(brew --repo)/Library/Taps/testuser/homebrew-kdeconnect"
 
-      - name: Test formula syntax
+      - name: Test cask syntax
         run: |
-          brew audit --quiet --online testuser/kdeconnect/kdeconnect || true
-          brew install --dry-run testuser/kdeconnect/kdeconnect
+          brew audit --quiet --online --cask testuser/kdeconnect/kdeconnect || true
+          brew install --dry-run --cask testuser/kdeconnect/kdeconnect
 
       - name: Test livecheck
         run: |
@@ -43,13 +43,13 @@ jobs:
             exit 1
           fi
 
-      - name: Test formula validation
+      - name: Test cask validation
         run: |
-          # Test that the formula can be loaded without errors
+          # Test that the cask can be loaded without errors
           brew ruby -e "
-            require 'formula'
-            formula = Formula.factory('$(brew --repo)/Library/Taps/testuser/homebrew-kdeconnect/Formula/kdeconnect.rb')
-            puts '✅ Formula loaded successfully'
-            puts \"Version: #{formula.version}\"
-            puts \"URL: #{formula.url}\"
+            require 'cask'
+            cask = Cask::CaskLoader.load('$(brew --repo)/Library/Taps/testuser/homebrew-kdeconnect/Casks/kdeconnect.rb')
+            puts '✅ Cask loaded successfully'
+            puts \"Version: #{cask.version}\"
+            puts \"URL: #{cask.url}\"
           "

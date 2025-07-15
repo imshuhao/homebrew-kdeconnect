@@ -53,9 +53,9 @@ jobs:
             NEW_VERSION="$X86_BUILD"
           fi
           
-          # Get current version from formula (handle case where version line doesn't exist)
-          CURRENT_VERSION=$(grep -o 'version "[0-9]*"' Formula/kdeconnect.rb | grep -o '[0-9]*' || echo "0")
-          echo "Current version in formula: $CURRENT_VERSION"
+          # Get current version from cask (handle case where version line doesn't exist)
+          CURRENT_VERSION=$(grep -o 'version "[0-9]*"' Casks/kdeconnect.rb | grep -o '[0-9]*' || echo "0")
+          echo "Current version in cask: $CURRENT_VERSION"
           echo "New version found: $NEW_VERSION"
           
           if [ "$NEW_VERSION" != "" ] && [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
@@ -85,15 +85,15 @@ jobs:
           # Update ARM64 URL - escape the URL for sed
           ARM64_URL_ESCAPED=$(echo "$ARM64_URL" | sed 's/[[\.*^$()+?{|]/\\&/g')
           # Replace the entire ARM64 URL line with the new URL
-          sed -i "/url \".*arm64.*dmg\"/c\    url \"$ARM64_URL_ESCAPED\"" Formula/kdeconnect.rb
+          sed -i "/url \".*arm64.*dmg\"/c\    url \"$ARM64_URL_ESCAPED\"" Casks/kdeconnect.rb
           
           # Update x86_64 URL - escape the URL for sed
           X86_URL_ESCAPED=$(echo "$X86_URL" | sed 's/[[\.*^$()+?{|]/\\&/g')
           # Replace the entire x86_64 URL line with the new URL
-          sed -i "/url \".*x86_64.*dmg\"/c\    url \"$X86_URL_ESCAPED\"" Formula/kdeconnect.rb
+          sed -i "/url \".*x86_64.*dmg\"/c\    url \"$X86_URL_ESCAPED\"" Casks/kdeconnect.rb
           
           # Update version
-          sed -i "s|version \"[0-9]*\"|version \"$NEW_VERSION\"|" Formula/kdeconnect.rb
+          sed -i "s|version \"[0-9]*\"|version \"$NEW_VERSION\"|" Casks/kdeconnect.rb
           
           # Download files and calculate SHA256
           echo "Downloading ARM64 file to calculate SHA256..."
@@ -106,8 +106,8 @@ jobs:
           X86_SHA256=$(sha256sum x86_64.dmg | cut -d' ' -f1)
           echo "x86_64 SHA256: $X86_SHA256"
           
-          # Update SHA256 in formula (use ARM64 SHA256 as they should be the same build)
-          sed -i "s|sha256 \"[a-f0-9]*\"|sha256 \"$ARM64_SHA256\"|" Formula/kdeconnect.rb
+          # Update SHA256 in cask (use ARM64 SHA256 as they should be the same build)
+          sed -i "s|sha256 \"[a-f0-9]*\"|sha256 \"$ARM64_SHA256\"|" Casks/kdeconnect.rb
           
           # Clean up downloaded files
           rm -f arm64.dmg x86_64.dmg
@@ -130,14 +130,14 @@ jobs:
           
           # Create branch and commit
           git checkout -b update-kdeconnect-${{ steps.check.outputs.new_version }}
-          git add Formula/kdeconnect.rb
+          git add Casks/kdeconnect.rb
           git commit -m "Update KDE Connect to version ${{ steps.check.outputs.new_version }}"
           git push -f origin update-kdeconnect-${{ steps.check.outputs.new_version }}
           
           # Create PR
           gh pr create \
             --title "Update KDE Connect to version ${{ steps.check.outputs.new_version }}" \
-            --body "This automated PR updates the KDE Connect formula to version ${{ steps.check.outputs.new_version }}.
+            --body "This automated PR updates the KDE Connect cask to version ${{ steps.check.outputs.new_version }}.
 
             - Updated via Homebrew livecheck
             - Version: ${{ steps.check.outputs.new_version }}" \
