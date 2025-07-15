@@ -53,8 +53,8 @@ jobs:
             NEW_VERSION="$X86_BUILD"
           fi
           
-          # Get current version from formula
-          CURRENT_VERSION=$(grep -o 'version "[0-9]*"' Formula/kdeconnect.rb | grep -o '[0-9]*')
+          # Get current version from formula (handle case where version line doesn't exist)
+          CURRENT_VERSION=$(grep -o 'version "[0-9]*"' Formula/kdeconnect.rb | grep -o '[0-9]*' || echo "0")
           echo "Current version in formula: $CURRENT_VERSION"
           echo "New version found: $NEW_VERSION"
           
