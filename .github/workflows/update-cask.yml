@@ -152,9 +152,9 @@ jobs:
             PR_NUMBER=$(echo $PR_URL | grep -o '[0-9]*$')
             
             if [ -n "$PR_NUMBER" ]; then
-              # Enable automerge
-              gh pr merge $PR_NUMBER --auto --merge || echo "Auto-merge not enabled. You may need to configure branch protection rules."
-              echo "PR #$PR_NUMBER is ready for auto-merge"
+              # Enable automerge (without forcing immediate merge)
+              gh pr merge $PR_NUMBER --auto || echo "Auto-merge not enabled. You may need to configure branch protection rules."
+              echo "PR #$PR_NUMBER is ready for auto-merge (will merge when tests pass)"
             else
               echo "Could not extract PR number from URL: $PR_URL"
             fi
