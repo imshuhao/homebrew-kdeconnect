@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  checks: write
 
 jobs:
   update-cask:
@@ -135,14 +136,31 @@ jobs:
           git push -f origin update-kdeconnect-${{ steps.check.outputs.new_version }}
           
           # Create PR
-          gh pr create \
+          PR_URL=$(gh pr create \
             --title "Update KDE Connect to version ${{ steps.check.outputs.new_version }}" \
             --body "This automated PR updates the KDE Connect cask to version ${{ steps.check.outputs.new_version }}.
 
             - Updated via Homebrew livecheck
             - Version: ${{ steps.check.outputs.new_version }}" \
             --head update-kdeconnect-${{ steps.check.outputs.new_version }} \
-            --base main || echo "PR creation failed (may already exist)"
+            --base main)
+          
+          if [ $? -eq 0 ] && [ -n "$PR_URL" ]; then
+            echo "Created PR: $PR_URL"
+            
+            # Extract PR number from URL
+            PR_NUMBER=$(echo $PR_URL | grep -o '[0-9]*$')
+            
+            if [ -n "$PR_NUMBER" ]; then
+              # Enable automerge
+              gh pr merge $PR_NUMBER --auto --merge || echo "Auto-merge not enabled. You may need to configure branch protection rules."
+              echo "PR #$PR_NUMBER is ready for auto-merge"
+            else
+              echo "Could not extract PR number from URL: $PR_URL"
+            fi
+          else
+            echo "PR creation failed or PR already exists"
+          fi
 
       - name: Skip if no update
         if: steps.check.outputs.update_needed == 'false'
