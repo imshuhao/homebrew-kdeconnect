@@ -22,12 +22,24 @@ jobs:
           # Get latest ARM64 build URL
           ARM64_FILENAME=$(curl -s https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/ | grep -o 'href="[^"]*\.dmg"' | grep -o '"[^"]*"' | tr -d '"' | sort -r | head -1)
           ARM64_URL="https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/$ARM64_FILENAME"
-          ARM64_BUILD=$(echo "$ARM64_FILENAME" | grep -o '[0-9]*')
+          
+          # Extract build number more flexibly - look for any number that appears to be a build ID
+          ARM64_BUILD=$(echo "$ARM64_FILENAME" | grep -o '[0-9]\{4,\}' | head -1)
+          if [ -z "$ARM64_BUILD" ]; then
+            # Fallback: try to extract any number that might be a build number
+            ARM64_BUILD=$(echo "$ARM64_FILENAME" | grep -o '[0-9]*' | grep -v '^[0-9]\{1,3\}$' | head -1)
+          fi
           
           # Get latest x86_64 build URL
           X86_FILENAME=$(curl -s https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/ | grep -o 'href="[^"]*\.dmg"' | grep -o '"[^"]*"' | tr -d '"' | sort -r | head -1)
           X86_URL="https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/$X86_FILENAME"
-          X86_BUILD=$(echo "$X86_FILENAME" | grep -o '[0-9]*')
+          
+          # Extract build number more flexibly - look for any number that appears to be a build ID
+          X86_BUILD=$(echo "$X86_FILENAME" | grep -o '[0-9]\{4,\}' | head -1)
+          if [ -z "$X86_BUILD" ]; then
+            # Fallback: try to extract any number that might be a build number
+            X86_BUILD=$(echo "$X86_FILENAME" | grep -o '[0-9]*' | grep -v '^[0-9]\{1,3\}$' | head -1)
+          fi
           
           echo "Latest ARM64 build: $ARM64_BUILD"
           echo "Latest x86_64 build: $X86_BUILD"
@@ -72,11 +84,13 @@ jobs:
           
           # Update ARM64 URL - escape the URL for sed
           ARM64_URL_ESCAPED=$(echo "$ARM64_URL" | sed 's/[[\.*^$()+?{|]/\\&/g')
-          sed -i "s|url \".*kdeconnect-kde-master-.*-macos-clang-arm64\.dmg\"|url \"$ARM64_URL_ESCAPED\"|" Formula/kdeconnect.rb
+          # Replace the entire ARM64 URL line with the new URL
+          sed -i "/url \".*arm64.*dmg\"/c\    url \"$ARM64_URL_ESCAPED\"" Formula/kdeconnect.rb
           
           # Update x86_64 URL - escape the URL for sed
           X86_URL_ESCAPED=$(echo "$X86_URL" | sed 's/[[\.*^$()+?{|]/\\&/g')
-          sed -i "s|url \".*kdeconnect-kde-master-.*-macos-clang-x86_64\.dmg\"|url \"$X86_URL_ESCAPED\"|" Formula/kdeconnect.rb
+          # Replace the entire x86_64 URL line with the new URL
+          sed -i "/url \".*x86_64.*dmg\"/c\    url \"$X86_URL_ESCAPED\"" Formula/kdeconnect.rb
           
           # Update version
           sed -i "s|version \"[0-9]*\"|version \"$NEW_VERSION\"|" Formula/kdeconnect.rb
