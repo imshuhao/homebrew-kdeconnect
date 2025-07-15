@@ -107,8 +107,10 @@ jobs:
           X86_SHA256=$(sha256sum x86_64.dmg | cut -d' ' -f1)
           echo "x86_64 SHA256: $X86_SHA256"
           
-          # Update SHA256 in cask (use ARM64 SHA256 as they should be the same build)
-          sed -i "s|sha256 \"[a-f0-9]*\"|sha256 \"$ARM64_SHA256\"|" Casks/kdeconnect.rb
+          # Update ARM64 SHA256
+          sed -i "/if Hardware::CPU.arm?/,/sha256/s|sha256 \"[^\"]*\"|sha256 \"$ARM64_SHA256\"|" Casks/kdeconnect.rb
+          # Update x86_64 SHA256
+          sed -i "/else/,/sha256/s|sha256 \"[^\"]*\"|sha256 \"$X86_SHA256\"|" Casks/kdeconnect.rb
           
           # Clean up downloaded files
           rm -f arm64.dmg x86_64.dmg

@@ -25,7 +25,7 @@ jobs:
 
       - name: Test cask syntax
         run: |
-          brew audit --quiet --online --cask testuser/kdeconnect/kdeconnect || true
+          brew audit --quiet --online --cask testuser/kdeconnect/kdeconnect
           brew install --dry-run --cask testuser/kdeconnect/kdeconnect
 
       - name: Test livecheck
