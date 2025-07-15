@@ -31,11 +31,11 @@ jobs:
       - name: Test livecheck
         run: |
           # Test that livecheck can find versions
-          LIVECHECK_OUTPUT=$(brew livecheck testuser/kdeconnect/kdeconnect --json 2>/dev/null || echo "{}")
+          LIVECHECK_OUTPUT=$(brew livecheck testuser/kdeconnect/kdeconnect --json 2>/dev/null || echo "[]")
           echo "Livecheck output: $LIVECHECK_OUTPUT"
           
-          # Check if livecheck found a version
-          VERSION=$(echo "$LIVECHECK_OUTPUT" | jq -r '.version // empty')
+          # Check if livecheck found a version (cask output is an array)
+          VERSION=$(echo "$LIVECHECK_OUTPUT" | jq -r '.[0].version.latest // empty')
           if [ -n "$VERSION" ]; then
             echo "✅ Livecheck found version: $VERSION"
           else
