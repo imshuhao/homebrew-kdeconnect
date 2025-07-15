@@ -68,16 +68,34 @@ jobs:
           git commit -m "Update KDE Connect formula to latest nightly build (${{ env.DATE }})"
           git push -f origin update-kdeconnect-${{ env.DATE }}
           
-      # Create the PR using the GitHub CLI
-      - name: Create Pull Request
+      # Create the PR using the GitHub CLI and enable auto-merge
+      - name: Create Pull Request and Auto-merge
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          gh pr create \
+          # Create the PR
+          PR_URL=$(gh pr create \
             --title "Update KDE Connect formula to latest nightly build (${{ env.DATE }})" \
             --body "This automated PR updates the KDE Connect formula to use the latest nightly build.
 
-            - Updated revision to force brew to fetch the latest DMG files
+            - Updated to version 0.$(date +%Y%m%d) to force brew to fetch the latest DMG files
             - Date: ${{ env.DATE }}" \
             --head update-kdeconnect-${{ env.DATE }} \
-            --base main || echo "PR already exists or cannot be created"
+            --base main)
+          
+          if [ $? -eq 0 ] && [ -n "$PR_URL" ]; then
+            echo "Created PR: $PR_URL"
+            
+            # Extract PR number from URL
+            PR_NUMBER=$(echo $PR_URL | grep -o '[0-9]*$')
+            
+            if [ -n "$PR_NUMBER" ]; then
+              # Enable auto-merge
+              gh pr merge $PR_NUMBER --auto --merge
+              echo "Auto-merge enabled for PR #$PR_NUMBER"
+            else
+              echo "Could not extract PR number from URL: $PR_URL"
+            fi
+          else
+            echo "PR creation failed or PR already exists"
+          fi
