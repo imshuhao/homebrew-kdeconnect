@@ -5,6 +5,7 @@ on:
     - cron: '0 0 * * *'  # Run daily at midnight UTC
   workflow_dispatch:  # Allow manual triggering
 
+# These permissions are needed for the GitHub token
 permissions:
   contents: write
   pull-requests: write
@@ -21,7 +22,15 @@ jobs:
         run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
       - name: Install dependencies
-        run: sudo apt-get install -y curl jq
+        run: |
+          sudo apt-get install -y curl jq
+          
+          # Install GitHub CLI
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y gh
 
       - name: Update formula
         run: |
@@ -48,15 +57,26 @@ jobs:
           cp -r . /tmp/homebrew-test/Library/Taps/testuser/homebrew-kdeconnect
           HOMEBREW_LIBRARY_PATH=/usr/local/Homebrew/Library brew ruby -e "require 'formula'; Formula.factory('/tmp/homebrew-test/Library/Taps/testuser/homebrew-kdeconnect/Formula/kdeconnect.rb')" || echo "Formula check failed but continuing anyway"
 
+      # Push changes to a new branch
+      - name: Push changes
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git checkout -b update-kdeconnect-${{ env.DATE }}
+          git add Formula/kdeconnect.rb
+          git commit -m "Update KDE Connect formula to latest nightly build (${{ env.DATE }})"
+          git push -f origin update-kdeconnect-${{ env.DATE }}
+          
+      # Create the PR using the GitHub CLI
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
-        with:
-          commit-message: "Update KDE Connect formula to latest nightly build (${{ env.DATE }})"
-          title: "Update KDE Connect formula to latest nightly build (${{ env.DATE }})"
-          body: |
-            This automated PR updates the KDE Connect formula to use the latest nightly build.
-            
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr create \
+            --title "Update KDE Connect formula to latest nightly build (${{ env.DATE }})" \
+            --body "This automated PR updates the KDE Connect formula to use the latest nightly build.
+
             - Updated revision to force brew to fetch the latest DMG files
-            - Date: ${{ env.DATE }}
-          branch: update-kdeconnect-${{ env.DATE }}
-          delete-branch: true
+            - Date: ${{ env.DATE }}" \
+            --head update-kdeconnect-${{ env.DATE }} \
+            --base main || echo "PR already exists or cannot be created"
