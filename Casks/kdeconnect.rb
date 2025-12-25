@@ -10,7 +10,7 @@ cask "kdeconnect" do
     strategy :page_match
   end
 
-  depends_on macos: ">= :monterey"
+  depends_on macos: ">= :ventura"
 
   on_macos do
     if Hardware::CPU.arm?
