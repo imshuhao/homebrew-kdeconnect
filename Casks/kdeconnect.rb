@@ -2,7 +2,7 @@ cask "kdeconnect" do
   name "KDE Connect"
   desc "Enabling communication between all your devices"
   homepage "https://kdeconnect.kde.org/"
-  version "5850"
+  version "5856"
 
   livecheck do
     url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/"
@@ -14,10 +14,10 @@ cask "kdeconnect" do
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/kdeconnect-kde-master-5850-macos-clang-arm64.dmg"
+      url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/kdeconnect-kde-master-5856-macos-clang-arm64.dmg"
       sha256 :no_check
     else
-      url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/kdeconnect-kde-master-5850-macos-clang-x86_64.dmg"
+      url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/kdeconnect-kde-master-5856-macos-clang-x86_64.dmg"
       sha256 :no_check
     end
   end
