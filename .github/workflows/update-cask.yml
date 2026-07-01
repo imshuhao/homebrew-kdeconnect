@@ -8,132 +8,91 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  checks: write
 
 jobs:
   update-cask:
-    runs-on: ubuntu-latest
+    # macOS runner: native cask support (brew bump-cask-pr) plus preinstalled gh/git.
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Check for updates
+      - name: Determine latest build
         id: check
         run: |
-          # Get latest ARM64 build URL
-          ARM64_FILENAME=$(curl -s https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/ | grep -o 'href="[^"]*\.dmg"' | grep -o '"[^"]*"' | tr -d '"' | sort -r | head -1)
-          ARM64_URL="https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/$ARM64_FILENAME"
-          
-          # Extract build number more flexibly - look for any number that appears to be a build ID
-          ARM64_BUILD=$(echo "$ARM64_FILENAME" | grep -o '[0-9]\{4,\}' | head -1)
-          if [ -z "$ARM64_BUILD" ]; then
-            # Fallback: try to extract any number that might be a build number
-            ARM64_BUILD=$(echo "$ARM64_FILENAME" | grep -o '[0-9]*' | grep -v '^[0-9]\{1,3\}$' | head -1)
-          fi
-          
-          # Get latest x86_64 build URL
-          X86_FILENAME=$(curl -s https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/ | grep -o 'href="[^"]*\.dmg"' | grep -o '"[^"]*"' | tr -d '"' | sort -r | head -1)
-          X86_URL="https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-x86_64/$X86_FILENAME"
-          
-          # Extract build number more flexibly - look for any number that appears to be a build ID
-          X86_BUILD=$(echo "$X86_FILENAME" | grep -o '[0-9]\{4,\}' | head -1)
-          if [ -z "$X86_BUILD" ]; then
-            # Fallback: try to extract any number that might be a build number
-            X86_BUILD=$(echo "$X86_FILENAME" | grep -o '[0-9]*' | grep -v '^[0-9]\{1,3\}$' | head -1)
-          fi
-          
-          echo "Latest ARM64 build: $ARM64_BUILD"
-          echo "Latest x86_64 build: $X86_BUILD"
-          echo "ARM64 URL: $ARM64_URL"
-          echo "x86_64 URL: $X86_URL"
-          
-          # Use the higher build number as the version
-          if [ "$ARM64_BUILD" -gt "$X86_BUILD" ]; then
-            NEW_VERSION="$ARM64_BUILD"
+          base="https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master"
+
+          # Each arch directory retains only its latest build; pull the build number
+          # out of the DMG filename (anchored + numeric sort, not lexical).
+          arm=$(curl -fsSL "$base/macos-arm64/"   | grep -oE 'kdeconnect-kde-master-[0-9]+-macos[^"<> ]*arm64\.dmg'  | grep -oE 'master-[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1)
+          intel=$(curl -fsSL "$base/macos-x86_64/" | grep -oE 'kdeconnect-kde-master-[0-9]+-macos[^"<> ]*x86_64\.dmg' | grep -oE 'master-[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1)
+          current=$(grep -oE 'version "[0-9]+"' Casks/kdeconnect.rb | grep -oE '[0-9]+')
+          echo "arm64=$arm  x86_64=$intel  current=$current"
+
+          if [ -z "$arm" ] || [ -z "$intel" ]; then
+            echo "Could not determine build numbers; skipping."
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+          elif [ "$arm" != "$intel" ]; then
+            # Both arch URLs interpolate a single #{version}; a shared build must exist
+            # on both. During the brief publish skew the older build is already gone,
+            # so wait for the next run rather than pin a version one arch can't serve.
+            echo "Arch build skew (arm64=$arm, x86_64=$intel); waiting for convergence."
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+          elif [ "$arm" = "$current" ]; then
+            echo "Already up to date ($current)."
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
           else
-            NEW_VERSION="$X86_BUILD"
-          fi
-          
-          # Get current version from cask (handle case where version line doesn't exist)
-          CURRENT_VERSION=$(grep -o 'version "[0-9]*"' Casks/kdeconnect.rb | grep -o '[0-9]*' || echo "0")
-          echo "Current version in cask: $CURRENT_VERSION"
-          echo "New version found: $NEW_VERSION"
-          
-          if [ "$NEW_VERSION" != "" ] && [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
-            echo "New version available: $NEW_VERSION"
-            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-            echo "arm64_url=$ARM64_URL" >> $GITHUB_OUTPUT
-            echo "x86_url=$X86_URL" >> $GITHUB_OUTPUT
-            echo "update_needed=true" >> $GITHUB_OUTPUT
-          else
-            echo "No update needed"
-            echo "update_needed=false" >> $GITHUB_OUTPUT
+            echo "New version available: $arm"
+            echo "new_version=$arm" >> "$GITHUB_OUTPUT"
+            echo "update_needed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Update cask
+      - name: Bump cask (download DMGs, compute checksums)
         if: steps.check.outputs.update_needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.check.outputs.new_version }}
         run: |
-          NEW_VERSION="${{ steps.check.outputs.new_version }}"
+          # brew bump-cask-pr needs the cask inside a tap; use the checkout as the tap.
+          TAP="$(brew --repo)/Library/Taps/imshuhao/homebrew-kdeconnect"
+          mkdir -p "$(dirname "$TAP")"
+          cp -R "$GITHUB_WORKSPACE" "$TAP"
 
-          echo "Updating cask to version: $NEW_VERSION"
+          # --write-only downloads both arch DMGs, computes both SHA-256s, and rewrites
+          # the cask in place without any git action. Failure here (e.g. a missing DMG)
+          # aborts the run, so a broken build never reaches a PR.
+          brew bump-cask-pr \
+            --version="$NEW_VERSION" \
+            --write-only --no-audit --no-style --no-browse \
+            imshuhao/kdeconnect/kdeconnect
 
-          # The DMG URLs interpolate #{version}, so only the version stanza needs bumping.
-          sed -i "s|version \"[0-9]*\"|version \"$NEW_VERSION\"|" Casks/kdeconnect.rb
+          cp "$TAP/Casks/kdeconnect.rb" "$GITHUB_WORKSPACE/Casks/kdeconnect.rb"
+          echo "--- Updated cask ---"
+          grep -nE 'version "|sha256 "' "$GITHUB_WORKSPACE/Casks/kdeconnect.rb"
 
       - name: Create Pull Request
         if: steps.check.outputs.update_needed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
+          NEW_VERSION: ${{ steps.check.outputs.new_version }}
         run: |
-          # Install GitHub CLI only if not already present
-          if ! command -v gh &> /dev/null; then
-            echo "Installing GitHub CLI..."
-            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-            sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-            sudo apt-get update
-            sudo apt-get install -y gh
-          else
-            echo "GitHub CLI already installed"
-          fi
-          
-          # Configure git
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
-          
-          # Create branch and commit
-          git checkout -b update-kdeconnect-${{ steps.check.outputs.new_version }}
-          git add Casks/kdeconnect.rb
-          git commit -m "Update KDE Connect to version ${{ steps.check.outputs.new_version }}"
-          git push -f origin update-kdeconnect-${{ steps.check.outputs.new_version }}
-          
-          # Create PR
-          PR_URL=$(gh pr create \
-            --title "Update KDE Connect to version ${{ steps.check.outputs.new_version }}" \
-            --body "This automated PR updates the KDE Connect cask to version ${{ steps.check.outputs.new_version }}.
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
 
-            - Updated via Homebrew livecheck
-            - Version: ${{ steps.check.outputs.new_version }}" \
-            --head update-kdeconnect-${{ steps.check.outputs.new_version }} \
-            --base main)
-          
-          if [ $? -eq 0 ] && [ -n "$PR_URL" ]; then
-            echo "Created PR: $PR_URL"
-            
-            # Extract PR number from URL
-            PR_NUMBER=$(echo $PR_URL | grep -o '[0-9]*$')
-            
-            if [ -n "$PR_NUMBER" ]; then
-              # Enable automerge
-              gh pr merge $PR_NUMBER --auto --merge || echo "Auto-merge not enabled. You may need to configure branch protection rules."
-              echo "PR #$PR_NUMBER is ready for auto-merge (will merge when tests pass)"
-            else
-              echo "Could not extract PR number from URL: $PR_URL"
-            fi
-          else
-            echo "PR creation failed or PR already exists"
-          fi
+          BRANCH="update-kdeconnect-$NEW_VERSION"
+          git checkout -b "$BRANCH"
+          git add Casks/kdeconnect.rb
+          git commit -m "Update KDE Connect to version $NEW_VERSION"
+          git push -f origin "$BRANCH"
+
+          PR_URL=$(gh pr create \
+            --title "Update KDE Connect to version $NEW_VERSION" \
+            --body "Automated update to version $NEW_VERSION. Both arch DMGs were downloaded and their SHA-256 checksums verified by \`brew bump-cask-pr\`." \
+            --head "$BRANCH" --base main)
+          echo "Created PR: $PR_URL"
+
+          gh pr merge "$PR_URL" --auto --merge \
+            || echo "Auto-merge not enabled; configure branch protection to allow it."
 
       - name: Skip if no update
         if: steps.check.outputs.update_needed == 'false'
-        run: echo "No update needed, skipping PR creation" 
+        run: echo "No update needed, skipping PR creation."
