@@ -73,27 +73,11 @@ jobs:
       - name: Update cask
         if: steps.check.outputs.update_needed == 'true'
         run: |
-          # Get the actual URLs from the check step
-          ARM64_URL="${{ steps.check.outputs.arm64_url }}"
-          X86_URL="${{ steps.check.outputs.x86_url }}"
           NEW_VERSION="${{ steps.check.outputs.new_version }}"
-          
-          echo "Updating cask with:"
-          echo "  ARM64 URL: $ARM64_URL"
-          echo "  x86_64 URL: $X86_URL"
-          echo "  Version: $NEW_VERSION"
-          
-          # Update ARM64 URL - escape the URL for sed
-          ARM64_URL_ESCAPED=$(echo "$ARM64_URL" | sed 's/[[\.*^$()+?{|]/\\&/g')
-          # Replace the entire ARM64 URL line with the new URL
-          sed -i "/url \".*arm64.*dmg\"/c\      url \"$ARM64_URL_ESCAPED\"" Casks/kdeconnect.rb
-          
-          # Update x86_64 URL - escape the URL for sed
-          X86_URL_ESCAPED=$(echo "$X86_URL" | sed 's/[[\.*^$()+?{|]/\\&/g')
-          # Replace the entire x86_64 URL line with the new URL
-          sed -i "/url \".*x86_64.*dmg\"/c\      url \"$X86_URL_ESCAPED\"" Casks/kdeconnect.rb
-          
-          # Update version
+
+          echo "Updating cask to version: $NEW_VERSION"
+
+          # The DMG URLs interpolate #{version}, so only the version stanza needs bumping.
           sed -i "s|version \"[0-9]*\"|version \"$NEW_VERSION\"|" Casks/kdeconnect.rb
 
       - name: Create Pull Request
