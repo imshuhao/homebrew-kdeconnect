@@ -1,4 +1,6 @@
 cask "kdeconnect" do
+  arch arm: "arm64", intel: "x86_64"
+
   # Each arch tracks its own build: KDE's CI retains only the latest DMG per
   # arch and the two can publish a few minutes apart, so a single shared
   # version would 404 for the lagging arch during that window.
@@ -20,8 +22,8 @@ cask "kdeconnect" do
   homepage "https://kdeconnect.kde.org/"
 
   livecheck do
-    url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/"
-    regex(/kdeconnect-kde-master-(\d+)-macos.*?arm64\.dmg/i)
+    url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-#{arch}/"
+    regex(/kdeconnect-kde-master-(\d+)-macos.*?#{arch}\.dmg/i)
     strategy :page_match
   end
 
