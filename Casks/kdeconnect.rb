@@ -15,7 +15,7 @@ cask "kdeconnect" do
 
   livecheck do
     url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/"
-    regex(/kdeconnect-kde-master-(\d+)-macos-clang-arm64\.dmg/)
+    regex(/kdeconnect-kde-master-(\d+)-macos.*?arm64\.dmg/i)
     strategy :page_match
   end
 
