@@ -23,6 +23,10 @@ jobs:
           mkdir -p "$(brew --repo)/Library/Taps/testuser"
           cp -r . "$(brew --repo)/Library/Taps/testuser/homebrew-kdeconnect"
 
+      - name: Test cask style
+        run: |
+          brew style testuser/kdeconnect/kdeconnect
+
       - name: Test cask syntax
         run: |
           brew audit --quiet --online --cask testuser/kdeconnect/kdeconnect
