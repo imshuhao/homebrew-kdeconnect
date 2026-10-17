@@ -5,8 +5,8 @@ cask "kdeconnect" do
   # arch and the two can publish a few minutes apart, so a single shared
   # version would 404 for the lagging arch during that window.
   on_arm do
-    version "6743"
-    sha256 "dd01fbcf82efbac0b8c3234ed307f40bce4575f54db284aae5772b442c1e8bb1"
+    version "6764"
+    sha256 "6d098224d621342ff8f74f233a5870aab1cf81eaf53fcd10f9094e06b4144921"
 
     url "https://cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/kdeconnect-kde-master-#{version}-macos-clang-arm64.dmg"
   end
